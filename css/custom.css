@@ -1,0 +1,440 @@
+/* Дополнительные стили для кастомизации Bootstrap */
+:root {
+    --primary-color: #1a6fb8;      /* Более темный синий */
+    --primary-dark: #1a2837;       /* Более темный для фона */
+    --primary-light: #2d8fd8;      /* Более яркий синий */
+    --danger-color: #dc2626;       /* Более яркий красный */
+    --danger-dark: #991b1b;        /* Более темный красный */
+    --text-dark: #111827;          /* Темный текст */
+    --text-light: #f3f4f6;         /* Светлый текст */
+    --bg-light: #ffffff;           /* Белый фон */
+    --bg-gray: #f3f4f6;            /* Серый фон */
+    --border-color: #d1d5db;       /* Цвет границ */
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    color: var(--text-dark);
+    background-color: var(--bg-light);
+}
+
+/* Общие стили */
+.navbar {
+    background-color: var(--primary-dark);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
+.navbar-dark .navbar-nav .nav-link {
+    color: var(--text-light);
+}
+
+.navbar-dark .navbar-nav .nav-link:hover {
+    color: var(--primary-light);
+}
+
+.main-content {
+    padding: 2rem 0;
+    min-height: calc(100vh - 160px);
+    background-color: var(--bg-gray);
+}
+
+/* Навигация */
+.navbar-brand img {
+    width: 40px;
+    height: 40px;
+    margin-right: 10px;
+}
+
+/* Улучшение форм */
+.form-control {
+    border-color: var(--border-color);
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(26, 111, 184, 0.25);
+}
+
+.form-label {
+    color: var(--text-dark);
+    font-weight: 500;
+}
+
+/* Карточки и формы */
+.card {
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    background-color: var(--bg-light);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    background-color: var(--primary-dark);
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+.card-body {
+    color: var(--text-dark);
+}
+
+/* Кнопки */
+.btn {
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--text-light);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-light);
+    border-color: var(--primary-light);
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+
+.btn-danger:hover {
+    background-color: var(--danger-dark);
+    border-color: var(--danger-dark);
+}
+
+/* Таблицы */
+.table {
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+}
+
+.table thead th {
+    background-color: var(--primary-dark);
+    color: var(--text-light);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.table tbody tr:hover {
+    background-color: var(--bg-gray);
+}
+
+/* Иконки в карточках */
+.feature-icon {
+    font-size: 2em;
+    color: var(--primary-color);
+}
+
+/* Алерты */
+.alert {
+    border: 1px solid transparent;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.alert-success {
+    background-color: #dcfce7;
+    border-color: #86efac;
+    color: #166534;
+}
+
+.alert-danger {
+    background-color: #fee2e2;
+    border-color: #fca5a5;
+    color: #991b1b;
+}
+
+.alert-warning {
+    background-color: #fef3c7;
+    border-color: #fcd34d;
+    color: #92400e;
+}
+
+.alert-info {
+    background-color: #dbeafe;
+    border-color: #93c5fd;
+    color: #1e40af;
+}
+
+/* Бейджи */
+.badge {
+    font-weight: 500;
+}
+
+.badge.bg-success {
+    background-color: #059669 !important;
+}
+
+.badge.bg-warning {
+    background-color: #d97706 !important;
+    color: var(--text-light);
+}
+
+.badge.bg-danger {
+    background-color: #dc2626 !important;
+}
+
+/* Футер */
+footer {
+    background-color: var(--primary-dark);
+    color: var(--text-light);
+    padding: 1rem 0;
+    margin-top: auto;
+    box-shadow: 0 -1px 3px rgba(0,0,0,0.1);
+}
+
+/* Модальные окна */
+.modal-content {
+    border: none;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.modal-header {
+    background-color: var(--primary-dark);
+    color: var(--text-light);
+}
+
+.modal-footer {
+    border-top: 1px solid var(--border-color);
+    background-color: var(--bg-gray);
+}
+
+/* Стили для фильтров */
+.input-group-text {
+    min-width: 120px;
+    justify-content: center;
+    border: none;
+}
+
+.input-group-lg .form-control,
+.input-group-lg .form-select {
+    border-left: none;
+}
+
+.input-group-lg .form-control:focus,
+.input-group-lg .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: none;
+}
+
+.shadow-sm {
+    transition: all 0.3s ease;
+}
+
+.shadow-sm:hover {
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+}
+
+/* Стили для уведомлений */
+.alert {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    min-width: 300px;
+    border: none;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Улучшение таблиц */
+.table {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.table thead th {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+}
+
+/* Стили для форм с ошибками */
+.form-control.is-invalid {
+    border-color: #dc3545;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23dc3545' viewBox='0 0 12 12'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+.invalid-feedback {
+    display: none;
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+/* Спиннер загрузки */
+.loading-spinner {
+    display: none;
+    width: 2rem;
+    height: 2rem;
+    margin: 1rem auto;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #0d6efd;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .navbar-collapse {
+        background-color: var(--primary-dark);
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .alert {
+        width: 90%;
+        right: 5%;
+    }
+}
+
+/* Пользовательское меню */
+.user-menu {
+    margin-left: 1rem;
+}
+
+.user-menu .nav-link {
+    color: var(--text-light) !important;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.user-menu .nav-link:hover {
+    color: var(--primary-light) !important;
+}
+
+.user-menu .nav-link .bi {
+    font-size: 1.25rem;
+}
+
+.user-menu #userLoggedIn .dropdown-toggle::after {
+    margin-left: 0.5rem;
+}
+
+.user-menu .dropdown-menu {
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-top: 0.5rem;
+}
+
+.user-menu .dropdown-item {
+    color: var(--text-dark);
+    padding: 0.625rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.user-menu .dropdown-item:hover {
+    background-color: var(--bg-gray);
+}
+
+.user-menu .dropdown-item .bi {
+    font-size: 1.1rem;
+    color: var(--primary-color);
+}
+
+.user-menu #userNotLoggedIn .btn {
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.user-menu #userNotLoggedIn .btn-outline-light {
+    background-color: transparent;
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.user-menu #userNotLoggedIn .btn-outline-light:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--text-light);
+}
+
+.user-menu .dropdown-divider {
+    border-top-color: var(--border-color);
+    margin: 0.5rem 0;
+}
+
+/* Стили для плавающих уведомлений */
+.alert-floating {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    min-width: 300px;
+    max-width: 500px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Стили для кнопки закрытия уведомления */
+.alert-floating .btn-close {
+    padding: 0.5rem 0.5rem;
+    margin: -0.5rem -0.5rem -0.5rem auto;
+}
+
+/* Стили для интерактивных карточек дашборда */
+.filter-card {
+    cursor: pointer; /* Показываем, что на карточку можно нажать */
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.filter-card:hover {
+    transform: translateY(-3px); /* Легкий подъем при наведении */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important; /* Более заметная тень */
+}
+
+.filter-card.active-filter {
+    border: 2px solid var(--bs-primary); /* Яркая рамка для активного фильтра */
+    box-shadow: 0 6px 20px rgba(0, 123, 255, 0.2) !important; /* Синяя тень для активности */
+}

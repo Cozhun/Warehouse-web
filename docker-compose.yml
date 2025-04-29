@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000" # Проброс порта приложения
+    environment:
+      - DB_HOST=db
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=warehousedb
+      - DB_PORT=5432
+      # Установите SESSION_SECRET для express-session
+      - SESSION_SECRET=R40ydhBSVwqImThx # ЗАМЕНИТЕ НА НАДЕЖНЫЙ СЕКРЕТ
+    depends_on:
+      db: # Зависит от сервиса db
+        condition: service_healthy # Запускать app только после того, как db будет готов (пройдет healthcheck)
+    volumes:
+      # Можно раскомментировать для разработки, чтобы изменения кода отражались без пересборки
+      # - .:/usr/src/app
+      # - /usr/src/app/node_modules # Исключаем node_modules из volume
+      - node_modules_volume:/usr/src/app/node_modules # Монтируем node_modules как отдельный volume
+    networks:
+      - warehouse-net
+
+  db:
+    image: postgres:15-alpine # Используем официальный образ PostgreSQL
+    environment:
+      POSTGRES_DB: warehousedb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Сохранение данных БД
+      # Монтируем скрипт инициализации в специальную директорию
+      # Скрипт будет выполнен автоматически при первом запуске контейнера
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+       - "5432:5432" # Опционально: проброс порта БД для внешнего доступа
+    networks:
+      - warehouse-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d warehousedb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  warehouse-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  node_modules_volume: # Volume для node_modules 
