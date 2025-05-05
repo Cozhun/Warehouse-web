@@ -22,12 +22,12 @@ async function updateCategoryList() {
         
         categories.forEach(category => {
             const option = document.createElement('option');
-            option.value = category.categoryid;
+            option.value = category.categoryId;
             option.textContent = category.name;
             categorySelect.appendChild(option);
         });
         
-        if (currentValue && categories.some(cat => cat.categoryid == currentValue)) {
+        if (currentValue && categories.some(cat => cat.categoryId == currentValue)) {
             categorySelect.value = currentValue;
         }
         console.log('[updateCategoryList] Category list updated.');

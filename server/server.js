@@ -168,16 +168,21 @@ app.post('/api/profile/change-password', requireAuth, async (req, res) => {
         // Проверяем текущий пароль
         const user = await db.authenticateUser(req.session.user.username, currentPassword);
         if (!user) {
-            res.status(401).json({ error: 'Current password is incorrect' });
-            return;
+            // Отправляем 401, но с более конкретным сообщением
+            return res.status(401).json({ error: 'Текущий пароль неверен' }); 
         }
         
+        // Валидация нового пароля (хотя бы на длину, как на клиенте)
+        if (!newPassword || newPassword.length < 8) { // Добавим простую проверку длины
+             return res.status(400).json({ error: 'Новый пароль должен быть не менее 8 символов' });
+        }
+
         // Обновляем пароль
         await db.updateUserPassword(req.session.user.userId, newPassword);
-        res.json({ success: true });
+        res.json({ success: true, message: 'Пароль успешно изменен' }); // Добавим message
     } catch (err) {
         console.error('Error changing password:', err);
-        res.status(500).json({ error: 'Failed to change password' });
+        res.status(500).json({ error: 'Ошибка при смене пароля' }); // Изменим сообщение
     }
 });
 

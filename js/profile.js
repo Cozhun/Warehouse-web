@@ -43,8 +43,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Используем lowercase имена полей, возвращаемые PostgreSQL
             document.getElementById('username').value = profile.username || 'N/A';
             document.getElementById('email').value = profile.email || 'N/A';
-            document.getElementById('enterpriseName').value = profile.enterprisename || 'Не указано';
-            document.getElementById('enterpriseId').value = profile.enterpriseid !== null && profile.enterpriseid !== undefined ? profile.enterpriseid : 'N/A';
+            document.getElementById('enterpriseName').value = profile.enterpriseName || 'Не указано';
+            document.getElementById('enterpriseId').value = profile.enterpriseId !== null && profile.enterpriseId !== undefined ? profile.enterpriseId : 'N/A';
             // Сделаем поля username и enterpriseName неизменяемыми
             document.getElementById('username').readOnly = true;
             document.getElementById('enterpriseName').readOnly = true;

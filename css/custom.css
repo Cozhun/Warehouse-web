@@ -397,16 +397,16 @@ footer {
 /* Стили для плавающих уведомлений */
 .alert-floating {
     position: fixed;
-    top: 20px;
+    top: 70px; /* Отступ от верхнего края, чтобы не перекрывать navbar */
     right: 20px;
-    z-index: 9999;
+    z-index: 1100; /* Увеличил z-index */
     min-width: 300px;
-    max-width: 500px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    animation: slideIn 0.5s ease-out;
+    max-width: 90%; /* Ограничение ширины на маленьких экранах */
+    /* box-shadow: 0 4px 8px rgba(0,0,0,0.1); */ /* Можно убрать, если есть в .alert */
+    /* animation: slideIn 0.3s ease-out; */ /* Убрал анимацию для теста */
 }
 
-@keyframes slideIn {
+/* @keyframes slideIn {
     from {
         transform: translateX(100%);
         opacity: 0;
@@ -415,7 +415,7 @@ footer {
         transform: translateX(0);
         opacity: 1;
     }
-}
+} */
 
 /* Стили для кнопки закрытия уведомления */
 .alert-floating .btn-close {
