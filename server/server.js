@@ -6,6 +6,16 @@ const db = require('./db');
 const app = express();
 const port = 3000;
 
+// Middleware для логирования HTTP-запросов
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        console.log(`[HTTP] ${req.method} ${req.originalUrl} - Status: ${res.statusCode} - Duration: ${duration}ms`);
+    });
+    next();
+});
+
 // Middleware
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../')));
@@ -24,50 +34,97 @@ function requireAuth(req, res, next) {
     next();
 }
 
+// Middleware для проверки прав администратора
+function requireAdmin(req, res, next) {
+    if (!req.session.user || !req.session.user.isAdmin) {
+        // Логируем попытку неавторизованного доступа к админ-ресурсу
+        console.warn(`[Auth] Unauthorized admin access attempt by user: ${req.session.user ? req.session.user.userId : 'Guest'} to ${req.originalUrl}`);
+        res.status(403).json({ error: 'Forbidden: Administrator access required' });
+        return;
+    }
+    next();
+}
+
 // Маршруты аутентификации
 app.post('/api/register', async (req, res) => {
     try {
-        const { username, password, email, enterpriseName, joinExisting, enterpriseId } = req.body;
+        const { username, password, email, 
+                firstName, lastName, 
+                joinExisting, enterpriseId, enterpriseName, 
+                invitationToken } = req.body; // Добавлен invitationToken
         
-        // !! Добавить валидацию входных данных на сервере (длина, формат и т.д.) !!
+        let userEnterpriseId = null;
+        let determinedEnterpriseIdByToken = null; // Для ID предприятия из токена
+        let newUserIsAdmin = false;
 
-        let userEnterpriseId = joinExisting ? parseInt(enterpriseId) : null;
-        
-        if (!joinExisting) {
-            if (!enterpriseName || enterpriseName.trim() === '') {
-                return res.status(400).json({ error: 'Название предприятия обязательно для заполнения при создании нового предприятия.' });
+        if (invitationToken && enterpriseId) { // Регистрация по токену
+            console.log(`[Register] Attempting registration with invitation token for enterprise ID: ${enterpriseId}`);
+            const validatedToken = await db.validateInvitationToken(parseInt(enterpriseId), invitationToken);
+            if (!validatedToken) {
+                console.warn(`[Register] Invalid or expired token for enterprise ID: ${enterpriseId}`);
+                return res.status(400).json({ error: 'Недействительный или истекший пригласительный токен.' });
             }
-            // Создаем новое предприятие
-            console.log(`[Register] Creating enterprise with name: ${enterpriseName.trim()}`);
-            userEnterpriseId = await db.createEnterprise(enterpriseName.trim());
-            console.log(`[Register] Created enterprise ID: ${userEnterpriseId}`); // Логируем полученный ID
-        } else {
+            console.log(`[Register] Token validated successfully. Token ID: ${validatedToken.tokenId}`);
+            userEnterpriseId = validatedToken.enterpriseId;
+            determinedEnterpriseIdByToken = validatedToken.enterpriseId;
+            newUserIsAdmin = false; // Пользователи по токену не админы
+            // Отмечаем токен как использованный ПОСЛЕ успешного создания пользователя
+
+        } else if (joinExisting) { // Присоединение к существующему по ID (без токена)
+            userEnterpriseId = parseInt(enterpriseId);
             if (!userEnterpriseId || isNaN(userEnterpriseId)) {
                  return res.status(400).json({ error: 'Некорректный ID предприятия для присоединения.' });
             }
             console.log(`[Register] Joining existing enterprise ID: ${userEnterpriseId}`);
+            newUserIsAdmin = false; // Присоединяющийся по ID не админ
+        
+        } else { // Создание нового предприятия
+            if (!enterpriseName || enterpriseName.trim() === '') {
+                return res.status(400).json({ error: 'Название предприятия обязательно для заполнения при создании нового предприятия.' });
+            }
+            console.log(`[Register] Creating enterprise with name: ${enterpriseName.trim()}`);
+            userEnterpriseId = await db.createEnterprise(enterpriseName.trim());
+            console.log(`[Register] Created enterprise ID: ${userEnterpriseId}`);
+            newUserIsAdmin = true; // Создатель предприятия - админ
         }
         
-        // Проверяем ID перед созданием пользователя
         if (userEnterpriseId === null || userEnterpriseId === undefined) {
             console.error('[Register] Error: userEnterpriseId is null or undefined before creating user.');
             return res.status(500).json({ error: 'Ошибка при определении предприятия пользователя.' });
         }
 
-        // Создаем пользователя
-        console.log(`[Register] Creating user with enterpriseId: ${userEnterpriseId}`);
-        const newUserInfo = await db.createUser(username, password, email, userEnterpriseId);
-        console.log(`[Register] Created user info:`, newUserInfo);
+        console.log(`[Register] Creating user with enterpriseId: ${userEnterpriseId}, firstName: ${firstName}, lastName: ${lastName}, isAdmin: ${newUserIsAdmin}`);
+        const newUserInfo = await db.createUser(username, password, email, userEnterpriseId, firstName, lastName, newUserIsAdmin);
+        console.log(`[Register] Created user info:`, newUserInfo, `IsAdmin: ${newUserIsAdmin}`);
         
-        // !!! Сразу после успешной регистрации устанавливаем сессию !!!
+        // Если регистрация была по токену, отмечаем токен как использованный
+        if (invitationToken && determinedEnterpriseIdByToken) {
+            const validatedTokenForMarking = await db.validateInvitationToken(determinedEnterpriseIdByToken, invitationToken); // Перепроверяем перед использованием, чтобы взять ID
+            if (validatedTokenForMarking) {
+                 await db.markTokenAsUsed(validatedTokenForMarking.tokenId);
+                 console.log(`[Register] Token ${validatedTokenForMarking.tokenId} marked as used after user creation.`);
+            } else {
+                // Эта ситуация не должна произойти, если первая валидация прошла, но логируем на всякий случай
+                console.error(`[Register] CRITICAL: Token for enterprise ${determinedEnterpriseIdByToken} was valid but could not be re-validated to be marked as used.`);
+            }
+        }
+
+        const userProfileForSession = await db.getUserProfile(newUserInfo.userid); 
+        if (!userProfileForSession) {
+            console.error(`[Register] Could not fetch profile for new user ID: ${newUserInfo.userid}`);
+            return res.status(500).json({ error: 'Ошибка при создании сессии пользователя.' });
+        }
+
         req.session.user = {
-            userId: newUserInfo.userid, 
-            username: username,
-            enterpriseId: userEnterpriseId
+            userId: userProfileForSession.userId,
+            username: userProfileForSession.username,
+            enterpriseId: userProfileForSession.enterpriseId,
+            firstName: userProfileForSession.firstName,
+            lastName: userProfileForSession.lastName,
+            isAdmin: userProfileForSession.isAdmin
         };
         console.log(`[Register] Session set:`, req.session.user);
 
-        // Отправляем ответ
         res.json({ success: true, user: req.session.user });
 
     } catch (err) {
@@ -98,10 +155,32 @@ app.post('/api/login', async (req, res) => {
         const user = await db.authenticateUser(username, password);
         
         if (user) {
-            req.session.user = user;
-            res.json({ success: true, user });
+            // Получаем полный профиль пользователя для сессии, включая имя и фамилию, если authenticateUser их не возвращает напрямую
+            const userProfileForSession = await db.getUserProfile(user.userId);
+            if (!userProfileForSession) {
+                console.error(`[Login] Could not fetch profile for user ID: ${user.userId}`);
+                // Можно вернуть ошибку или продолжить с данными из authenticateUser, если имя/фамилия не критичны для немедленной сессии
+                // Пока что продолжим с тем, что есть в user, роль там уже должна быть
+                req.session.user = {
+                    userId: user.userId,
+                    username: user.username,
+                    enterpriseId: user.enterpriseId,
+                    isAdmin: user.isAdmin
+                };
+            } else {
+                req.session.user = {
+                    userId: userProfileForSession.userId,
+                    username: userProfileForSession.username,
+                    enterpriseId: userProfileForSession.enterpriseId,
+                    firstName: userProfileForSession.firstName,
+                    lastName: userProfileForSession.lastName,
+                    isAdmin: userProfileForSession.isAdmin
+                };
+            }
+            console.log('[Login] Session set for user:', req.session.user);
+            res.json({ success: true, user: req.session.user });
         } else {
-            res.status(401).json({ error: 'Invalid credentials' });
+            res.status(401).json({ error: 'Неверное имя пользователя или пароль' });
         }
     } catch (err) {
         console.error('Login error:', err);
@@ -117,11 +196,17 @@ app.post('/api/logout', (req, res) => {
 // Проверка состояния аутентификации
 app.get('/api/check-auth', (req, res) => {
     if (req.session.user) {
+        // Возвращаем больше данных о пользователе, включая роль, имя и фамилию
         res.json({
             authenticated: true,
+            userId: req.session.user.userId,
             username: req.session.user.username,
-            email: req.session.user.email,
-            enterprise: req.session.user.enterpriseName
+            email: req.session.user.email, // Email может отсутствовать в сессии после логина, его лучше брать из профиля
+            enterpriseId: req.session.user.enterpriseId,
+            enterpriseName: req.session.user.enterpriseName, // enterpriseName также лучше брать из профиля
+            firstName: req.session.user.firstName,
+            lastName: req.session.user.lastName,
+            isAdmin: req.session.user.isAdmin
         });
     } else {
         res.json({ authenticated: false });
@@ -151,12 +236,31 @@ app.get('/api/profile', requireAuth, async (req, res) => {
 
 app.post('/api/profile/update', requireAuth, async (req, res) => {
     try {
-        const { email } = req.body;
-        await db.updateUserProfile(req.session.user.userId, email);
-        req.session.user.email = email;
-        res.json({ success: true });
+        const { email, firstName, lastName } = req.body;
+        const userId = req.session.user.userId;
+        
+        // !! Валидация email, firstName, lastName !!
+        if (email === undefined && firstName === undefined && lastName === undefined) {
+            return res.status(400).json({ error: 'Нет данных для обновления' });
+        }
+
+        await db.updateUserProfile(userId, email, firstName, lastName);
+        
+        // Обновляем сессию только для тех полей, которые могли измениться
+        // и присутствуют в req.body
+        if (email !== undefined) req.session.user.email = email;
+        if (firstName !== undefined) req.session.user.firstName = firstName;
+        if (lastName !== undefined) req.session.user.lastName = lastName;
+        // req.session.user.isAdmin не меняется здесь, так что остается прежним
+        
+        // Логируем изменения и статус ответа
+        const updatedFields = { email, firstName, lastName };
+        console.log(`[API Response] POST /api/profile/update - Status: 200 - UserID: ${userId} - Updated:`, 
+            Object.fromEntries(Object.entries(updatedFields).filter(([_, v]) => v !== undefined))
+        );
+        res.json({ success: true, message: 'Профиль успешно обновлен' });
     } catch (err) {
-        console.error('Error updating profile:', err);
+        console.error(`[API Error] POST /api/profile/update - Status: 500 - UserID: ${req.session.user.userId} - Error:`, err);
         res.status(500).json({ error: 'Failed to update profile' });
     }
 });
@@ -189,10 +293,11 @@ app.post('/api/profile/change-password', requireAuth, async (req, res) => {
 // Маршруты для работы с товарами
 app.post('/api/products', requireAuth, async (req, res) => {
     try {
-        // Получаем categoryId вместо category
         const { name, categoryId, description, quantity, price } = req.body;
+        const userId = req.session.user.userId; // Получаем userId из сессии
+        const enterpriseId = req.session.user.enterpriseId; // Получаем enterpriseId из сессии
         
-        console.log('Полученные данные для добавления товара:', req.body);
+        console.log('Полученные данные для добавления товара:', req.body, `UserID: ${userId}`);
 
         // Проверяем наличие обязательных полей и их значения
         if (!name || name.trim() === '') {
@@ -217,11 +322,10 @@ app.post('/api/products', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'Укажите корректную цену товара (>= 0)' });
         }
 
-        // Добавляем товар, передавая categoryId
-        const productId = await db.addProduct(req.session.user.enterpriseId, {
+        // Добавляем товар, передавая enterpriseId и userId
+        const productId = await db.addProduct(enterpriseId, userId, {
             name: name.trim(),
-            categoryId: numCategoryId, // Передаем распарсенный ID
-            // description: description ? description.trim() : '', // Оставим, хотя в db.js не используется
+            categoryId: numCategoryId, 
             quantity: numQuantity,
             price: numPrice
         });
@@ -233,7 +337,7 @@ app.post('/api/products', requireAuth, async (req, res) => {
         res.json({ 
             success: true,
             productId,
-            message: 'Товар успешно добавлен'
+            message: 'Товар успешно добавлен и залогирован.'
         });
         console.log(`[Products API] Response sent for productId: ${productId}`); // Добавим лог после отправки
     } catch (err) {
@@ -345,6 +449,184 @@ app.get('/api/dashboard-stats', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Error fetching dashboard stats:', err);
         res.status(500).json({ error: 'Failed to fetch dashboard statistics' });
+    }
+});
+
+// Маршруты для управления пригласительными токенами (для администраторов)
+app.post('/api/enterprise/invitation-tokens', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const enterpriseId = req.session.user.enterpriseId;
+        const createdByUserId = req.session.user.userId;
+        const { expiresInHours } = req.body; // Опционально, сколько часов токен будет действителен
+
+        if (!enterpriseId) {
+            return res.status(400).json({ error: 'ID предприятия не найдено в сессии администратора.' });
+        }
+
+        const tokenInfo = await db.generateInvitationToken(enterpriseId, createdByUserId, expiresInHours);
+        
+        console.log(`[API Response] POST /api/enterprise/invitation-tokens - Status: 201 - Token generated for enterprise ${enterpriseId}`);
+        res.status(201).json({ 
+            success: true, 
+            message: 'Пригласительный токен успешно создан.',
+            invitationToken: tokenInfo.originalToken, // Отправляем оригинальный токен админу
+            tokenId: tokenInfo.tokenId, // ID токена в БД (для информации)
+            expiresAt: new Date(new Date().getTime() + (expiresInHours || 24) * 60 * 60 * 1000).toISOString() // Примерное время истечения
+        });
+    } catch (err) {
+        console.error(`[API Error] POST /api/enterprise/invitation-tokens - Status: 500 - Error:`, err);
+        res.status(500).json({ error: 'Ошибка при создании пригласительного токена.' });
+    }
+});
+
+app.get('/api/enterprise/invitation-tokens', requireAuth, requireAdmin, async (req, res) => {
+    // TODO: Реализовать получение списка токенов для предприятия
+    try {
+        const enterpriseId = req.session.user.enterpriseId;
+        // Пример: const tokens = await db.getInvitationTokensForEnterprise(enterpriseId);
+        // Пока что заглушка:
+        console.log(`[API Response] GET /api/enterprise/invitation-tokens - Status: 200 - Enterprise ${enterpriseId} - Returning placeholder`);
+        res.json({ success: true, tokens: [] }); 
+    } catch (err) {
+        console.error(`[API Error] GET /api/enterprise/invitation-tokens - Status: 500 - Error:`, err);
+        res.status(500).json({ error: 'Ошибка при получении списка токенов.' });
+    }
+});
+
+// Маршруты для администрирования пользователей
+app.get('/api/enterprise/users', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const enterpriseId = req.session.user.enterpriseId;
+        if (!enterpriseId) {
+            return res.status(400).json({ error: 'ID предприятия не найдено в сессии администратора.' });
+        }
+        const users = await db.getUsersByEnterpriseId(enterpriseId);
+        console.log(`[API Response] GET /api/enterprise/users - Status: 200 - Fetched ${users.length} users for enterprise ${enterpriseId}`);
+        res.json({ success: true, users });
+    } catch (err) {
+        console.error(`[API Error] GET /api/enterprise/users - Status: 500 - Error:`, err);
+        res.status(500).json({ error: 'Ошибка при получении списка пользователей.' });
+    }
+});
+
+app.put('/api/users/:userId/admin-status', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { isAdmin } = req.body; // Ожидаем boolean
+        const currentAdminUserId = req.session.user.userId;
+
+        if (typeof isAdmin !== 'boolean') {
+            return res.status(400).json({ error: 'Некорректное значение для isAdmin. Ожидается true или false.' });
+        }
+
+        // Преобразуем userId к числу, если он приходит как строка из params
+        const targetUserId = parseInt(userId);
+        if (isNaN(targetUserId)) {
+            return res.status(400).json({ error: 'Некорректный ID пользователя.' });
+        }
+
+        if (targetUserId === currentAdminUserId && !isAdmin) {
+            console.warn(`[API] Admin ${currentAdminUserId} attempted to remove admin rights from themselves.`);
+            return res.status(403).json({ error: 'Вы не можете снять с себя права администратора.' });
+        }
+
+        const updatedUser = await db.setUserAdminStatus(targetUserId, isAdmin, currentAdminUserId);
+        console.log(`[API Response] PUT /api/users/${targetUserId}/admin-status - Status: 200 - User ${targetUserId} admin status set to ${isAdmin}`);
+        res.json({ success: true, user: updatedUser, message: 'Статус администратора пользователя успешно обновлен.' });
+
+    } catch (err) {
+        console.error(`[API Error] PUT /api/users/:userId/admin-status - Status: 500 - Error:`, err);
+        // Обрабатываем специфическую ошибку из db.js
+        if (err.message === 'Администратор не может снять с себя права администратора.') {
+            return res.status(403).json({ error: err.message });
+        }
+        if (err.message === 'Пользователь для обновления статуса администратора не найден.') {
+            return res.status(404).json({ error: err.message });
+        }
+        res.status(500).json({ error: 'Ошибка при обновлении статуса администратора пользователя.' });
+    }
+});
+
+app.delete('/api/users/:userId', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const targetUserIdStr = req.params.userId;
+        const currentAdminUserId = req.session.user.userId;
+        const enterpriseId = req.session.user.enterpriseId;
+
+        const targetUserId = parseInt(targetUserIdStr);
+        if (isNaN(targetUserId)) {
+            return res.status(400).json({ error: 'Некорректный ID пользователя.' });
+        }
+
+        if (targetUserId === currentAdminUserId) {
+            console.warn(`[API] Admin ${currentAdminUserId} attempted to delete themselves.`);
+            return res.status(403).json({ error: 'Вы не можете удалить свой собственный аккаунт.' });
+        }
+
+        const result = await db.deleteUser(targetUserId, currentAdminUserId, enterpriseId);
+        console.log(`[API Response] DELETE /api/users/${targetUserId} - Status: 200 - User deleted successfully.`);
+        res.json({ success: true, message: result.message, userId: result.userId });
+
+    } catch (err) {
+        console.error(`[API Error] DELETE /api/users/:userId - Status: 500 or other - Error:`, err);
+        if (err.message.includes('Вы не можете удалить свой собственный аккаунт') || 
+            err.message.includes('Пользователь не принадлежит вашему предприятию')) {
+            return res.status(403).json({ error: err.message });
+        }
+        if (err.message.includes('Пользователь для удаления не найден')) {
+            return res.status(404).json({ error: err.message });
+        }
+        // Обработка ошибки внешнего ключа, если вдруг SET NULL не сработал или есть другие ограничения
+        if (err.code === '23503') { 
+             console.error(`[API Error] Foreign key violation while deleting user ${req.params.userId}:`, err.detail);
+             return res.status(409).json({ error: 'Невозможно удалить пользователя, так как с ним связаны другие данные (например, активные сессии или другие записи, не обработанные ON DELETE SET NULL).' });
+        }
+        res.status(500).json({ error: 'Ошибка при удалении пользователя.' });
+    }
+});
+
+// Маршруты для отчетов
+app.get('/api/reports/product-movement', requireAuth, async (req, res) => {
+    try {
+        const enterpriseId = req.session.user.enterpriseId;
+        const { startDate, endDate, categoryId, userId, actionTypes } = req.query;
+
+        const filters = {
+            startDate: startDate || null,
+            endDate: endDate || null,
+            categoryId: categoryId ? parseInt(categoryId) : null,
+            userId: userId ? parseInt(userId) : null,
+            actionTypes: actionTypes ? actionTypes.split(',') : []
+        };
+        
+        const reportData = await db.getProductMovementReport(enterpriseId, filters);
+        res.json({ success: true, data: reportData });
+
+    } catch (error) {
+        console.error('Error generating product movement report:', error);
+        res.status(500).json({ success: false, error: 'Failed to generate product movement report' });
+    }
+});
+
+app.get('/api/reports/inventory-on-hand', requireAuth, async (req, res) => {
+    try {
+        const enterpriseId = req.session.user.enterpriseId;
+        const { search, categoryId, quantityFilterType, sort, order } = req.query;
+
+        const options = {
+            search: search || undefined,
+            categoryId: categoryId ? parseInt(categoryId) : undefined,
+            quantityFilterType: quantityFilterType || 'all',
+            sort: sort || 'productName',
+            order: order || 'ASC'
+        };
+        
+        const reportData = await db.getInventoryOnHandReport(enterpriseId, options);
+        res.json({ success: true, data: reportData });
+
+    } catch (error) {
+        console.error('Error generating inventory on hand report:', error);
+        res.status(500).json({ success: false, error: 'Failed to generate inventory on hand report' });
     }
 });
 

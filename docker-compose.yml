@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   app:
     build: .
@@ -13,6 +11,7 @@ services:
       - DB_PORT=5432
       # Установите SESSION_SECRET для express-session
       - SESSION_SECRET=R40ydhBSVwqImThx # ЗАМЕНИТЕ НА НАДЕЖНЫЙ СЕКРЕТ
+   
     depends_on:
       db: # Зависит от сервиса db
         condition: service_healthy # Запускать app только после того, как db будет готов (пройдет healthcheck)
@@ -35,8 +34,8 @@ services:
       # Монтируем скрипт инициализации в специальную директорию
       # Скрипт будет выполнен автоматически при первом запуске контейнера
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-       - "5432:5432" # Опционально: проброс порта БД для внешнего доступа
+    # ports:
+    #   - "5432:5432" # Опционально: проброс порта БД для внешнего доступа
     networks:
       - warehouse-net
     healthcheck:

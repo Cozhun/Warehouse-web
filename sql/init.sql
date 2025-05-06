@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS Users (
     Username VARCHAR(50) NOT NULL UNIQUE,
     PasswordHash VARCHAR(256) NOT NULL,
     Email VARCHAR(100) NOT NULL UNIQUE,
+    FirstName VARCHAR(255),
+    LastName VARCHAR(255),
+    IsAdmin BOOLEAN NOT NULL DEFAULT FALSE,
     EnterpriseID INT,
     CreatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (EnterpriseID) REFERENCES Enterprises(EnterpriseID)
@@ -43,11 +46,24 @@ CREATE TABLE IF NOT EXISTS ProductLogs (
     ProductID INT,
     UserID INT,
     Action VARCHAR(50),
-    OldValue TEXT, -- Используем TEXT вместо NVARCHAR(MAX)
-    NewValue TEXT, -- Используем TEXT вместо NVARCHAR(MAX)
+    OldValue TEXT,
+    NewValue TEXT,
     LogDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (ProductID) REFERENCES Products(ProductID),
-    FOREIGN KEY (UserID) REFERENCES Users(UserID)
+    FOREIGN KEY (ProductID) REFERENCES Products(ProductID) ON DELETE SET NULL,
+    FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE SET NULL
+);
+
+-- Создание таблицы пригласительных токенов
+CREATE TABLE IF NOT EXISTS InvitationTokens (
+    TokenID SERIAL PRIMARY KEY,
+    EnterpriseID INT NOT NULL,
+    TokenHash VARCHAR(256) NOT NULL UNIQUE, -- Хэш токена
+    CreatedByUserID INT NOT NULL, -- ID админа, создавшего токен
+    CreatedAt TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    ExpiresAt TIMESTAMP WITHOUT TIME ZONE NOT NULL, -- Дата истечения срока
+    IsUsed BOOLEAN NOT NULL DEFAULT FALSE, -- Использован ли токен
+    FOREIGN KEY (EnterpriseID) REFERENCES Enterprises(EnterpriseID) ON DELETE CASCADE,
+    FOREIGN KEY (CreatedByUserID) REFERENCES Users(UserID) ON DELETE CASCADE
 );
 
 -- Добавление тестовых данных (если таблицы были только что созданы)

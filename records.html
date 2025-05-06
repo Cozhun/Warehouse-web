@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Отчеты - Система управления складом</title>
+    <link rel="stylesheet" href="bootstrap-5.3.3-dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/custom.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Можно добавить стили для datepicker, если будем использовать -->
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <img src="img/logo.png" alt="Логотип склада">
+                Система управления складом
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavRecords">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNavRecords">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="index.html">Главная</a></li>
+                    <li class="nav-item"><a class="nav-link" href="inventory.html">Просмотр склада</a></li>
+                    <li class="nav-item"><a class="nav-link" href="add.html">Добавить товар</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="records.html">Отчеты</a></li>
+                    <li class="nav-item"><a class="nav-link" href="contact.html">Контакты</a></li>
+                </ul>
+                <div class="nav-item dropdown user-menu">
+                    <div id="userNotLoggedIn" style="display: none;">
+                        <a href="login.html" class="btn btn-primary me-2">Войти</a>
+                        <a href="register.html" class="btn btn-outline-light">Регистрация</a>
+                    </div>
+                    <div id="userLoggedIn" class="d-none">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle"></i> <span id="userName">Пользователь</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="profile.html"><i class="bi bi-person"></i> Профиль</a></li>
+                            <!-- Ссылка на админ-панель будет добавлена js/auth.js если пользователь админ -->
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" id="logoutBtn"><i class="bi bi-box-arrow-right"></i> Выйти</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container py-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Формирование отчетов</h1>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            Отчет о движении товаров
+                        </div>
+                        <div class="card-body">
+                            <form id="productMovementReportForm">
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <label for="pmStartDate" class="form-label">Дата начала:</label>
+                                        <input type="date" class="form-control" id="pmStartDate">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="pmEndDate" class="form-label">Дата окончания:</label>
+                                        <input type="date" class="form-control" id="pmEndDate">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="pmCategoryId" class="form-label">Категория:</label>
+                                        <select class="form-select" id="pmCategoryId">
+                                            <option value="">Все категории</option>
+                                            <!-- Опции категорий будут загружены динамически -->
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="pmUserId" class="form-label">Ответственный:</label>
+                                        <select class="form-select" id="pmUserId">
+                                            <option value="">Все пользователи</option>
+                                            <!-- Опции будут загружены динамически -->
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="pmMovementType" class="form-label">Тип движения:</label>
+                                        <select class="form-select" id="pmMovementType">
+                                            <option value="all">Все</option>
+                                            <option value="inbound">Приход</option>
+                                            <option value="outbound">Расход</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-auto align-self-end">
+                                        <button type="submit" class="btn btn-primary">Сформировать</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="reportResultArea" class="mt-4">
+                <!-- Результаты отчета будут здесь -->
+            </div>
+            
+            <div id="exportButtonsArea" class="mt-3" style="display: none;">
+                <!-- Кнопки экспорта будут здесь -->
+            </div>
+
+            <hr class="my-5"> <!-- Разделитель между отчетами -->
+
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            Отчет о текущем состоянии склада (Инвентаризация)
+                        </div>
+                        <div class="card-body">
+                            <form id="inventoryOnHandReportForm">
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <label for="iohCategoryId" class="form-label">Категория:</label>
+                                        <select class="form-select" id="iohCategoryId">
+                                            <option value="">Все категории</option>
+                                            <!-- Опции категорий будут загружены динамически -->
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="iohQuantityFilterType" class="form-label">Состояние запасов:</label>
+                                        <select class="form-select" id="iohQuantityFilterType">
+                                            <option value="all">Все</option>
+                                            <option value="inStock">В наличии (>10)</option>
+                                            <option value="lowStock">Мало на складе (1-10)</option>
+                                            <option value="outOfStock">Нет на складе (0)</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-auto align-self-end">
+                                        <button type="submit" class="btn btn-primary">Сформировать</button>
+                                    </div>
+                                </div>
+                                <!-- Можно добавить выбор сортировки, если нужно -->
+                                <!--
+                                <div class="row g-3 mt-2">
+                                    <div class="col-md-3">
+                                        <label for="iohSort" class="form-label">Сортировать по:</label>
+                                        <select class="form-select" id="iohSort">
+                                            <option value="productName">Названию</option>
+                                            <option value="categoryName">Категории</option>
+                                            <option value="quantity">Количеству</option>
+                                            <option value="price">Цене</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="iohOrder" class="form-label">Порядок:</label>
+                                        <select class="form-select" id="iohOrder">
+                                            <option value="ASC">Возрастанию</option>
+                                            <option value="DESC">Убыванию</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                -->
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="inventoryOnHandReportResultArea" class="mt-4">
+                <!-- Результаты отчета о состоянии склада будут здесь -->
+            </div>
+        </div>
+    </main>
+
+    <footer class="text-center footer mt-auto py-3 bg-light">
+        <div class="container">
+            <p class="mb-0">&copy; 2024 Система управления складом. Все права защищены.</p>
+        </div>
+    </footer>
+
+    <script src="bootstrap-5.3.3-dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/records.js"></script>
+</body>
+</html>

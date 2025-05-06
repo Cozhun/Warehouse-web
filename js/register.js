@@ -1,31 +1,53 @@
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('registerForm');
     const spinner = document.getElementById('registerSpinner');
-    const alert = document.getElementById('registerAlert');
-    const joinExistingCheckbox = document.getElementById('joinExisting');
-    const existingEnterpriseFields = document.getElementById('existingEnterpriseFields');
-    const newEnterpriseFields = document.getElementById('newEnterpriseFields');
+    const alertElement = document.getElementById('registerAlert');
+    
+    // Радио-кнопки и группы полей
+    const regTypeNewEnterpriseRadio = document.getElementById('regTypeNewEnterprise');
+    const regTypeJoinByTokenRadio = document.getElementById('regTypeJoinByToken');
+    const newEnterpriseFieldsDiv = document.getElementById('newEnterpriseFields');
+    const joinByTokenFieldsDiv = document.getElementById('joinByTokenFields');
 
-    // Функция показа уведомления
+    // Поля ввода
+    const usernameInput = document.getElementById('username');
+    const firstNameInput = document.getElementById('firstName');
+    const lastNameInput = document.getElementById('lastName');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const enterpriseNameInput = document.getElementById('enterpriseName');
+    const enterpriseIdTokenInput = document.getElementById('enterpriseIdToken');
+    const invitationTokenInput = document.getElementById('invitationToken');
+
     function showAlert(message, type) {
-        alert.className = `alert alert-${type}`;
-        alert.textContent = message;
-        alert.style.display = 'block';
+        alertElement.className = `alert alert-${type}`;
+        alertElement.textContent = message;
+        alertElement.style.display = 'block';
         setTimeout(() => {
-            alert.style.display = 'none';
-        }, 3000);
+            alertElement.style.display = 'none';
+        }, 5000);
     }
 
-    // Переключение полей предприятия
-    joinExistingCheckbox.addEventListener('change', function() {
-        if (this.checked) {
-            existingEnterpriseFields.style.display = 'block';
-            newEnterpriseFields.style.display = 'none';
-        } else {
-            existingEnterpriseFields.style.display = 'none';
-            newEnterpriseFields.style.display = 'block';
+    function toggleEnterpriseFields() {
+        if (regTypeNewEnterpriseRadio.checked) {
+            newEnterpriseFieldsDiv.style.display = 'block';
+            joinByTokenFieldsDiv.style.display = 'none';
+            enterpriseNameInput.required = true;
+            enterpriseIdTokenInput.required = false;
+            invitationTokenInput.required = false;
+        } else if (regTypeJoinByTokenRadio.checked) {
+            newEnterpriseFieldsDiv.style.display = 'none';
+            joinByTokenFieldsDiv.style.display = 'block';
+            enterpriseNameInput.required = false;
+            enterpriseIdTokenInput.required = true;
+            invitationTokenInput.required = true;
         }
-    });
+    }
+
+    regTypeNewEnterpriseRadio.addEventListener('change', toggleEnterpriseFields);
+    regTypeJoinByTokenRadio.addEventListener('change', toggleEnterpriseFields);
+    toggleEnterpriseFields();
 
     // Валидация полей
     const inputs = form.querySelectorAll('input');
@@ -45,27 +67,39 @@ document.addEventListener('DOMContentLoaded', function() {
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         
+        if (regTypeNewEnterpriseRadio.checked) {
+            if (!enterpriseNameInput.value) enterpriseNameInput.classList.add('is-invalid');
+        } else if (regTypeJoinByTokenRadio.checked) {
+            if (!enterpriseIdTokenInput.value) enterpriseIdTokenInput.classList.add('is-invalid');
+            if (!invitationTokenInput.value) invitationTokenInput.classList.add('is-invalid');
+        }
+
         if (!form.checkValidity()) {
             e.stopPropagation();
             form.classList.add('was-validated');
+            const firstInvalid = form.querySelector(':invalid');
+            if (firstInvalid) firstInvalid.focus();
             return;
         }
 
         spinner.style.display = 'block';
         
         try {
-            const joinExisting = joinExistingCheckbox.checked;
             const requestData = {
-                username: document.getElementById('username').value,
-                password: document.getElementById('password').value,
-                email: document.getElementById('email').value,
-                joinExisting: joinExisting
+                username: usernameInput.value,
+                firstName: firstNameInput.value,
+                lastName: lastNameInput.value,
+                password: passwordInput.value,
+                email: emailInput.value,
             };
 
-            if (joinExisting) {
-                requestData.enterpriseId = document.getElementById('enterpriseId').value;
-            } else {
-                requestData.enterpriseName = document.getElementById('enterpriseName').value;
+            if (regTypeNewEnterpriseRadio.checked) {
+                requestData.enterpriseName = enterpriseNameInput.value;
+                requestData.joinExisting = false;
+            } else if (regTypeJoinByTokenRadio.checked) {
+                requestData.enterpriseId = enterpriseIdTokenInput.value;
+                requestData.invitationToken = invitationTokenInput.value;
+                requestData.joinExisting = true;
             }
 
             const response = await fetch('/api/register', {
@@ -95,17 +129,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Валидация совпадения паролей
-    const password = document.getElementById('password');
-    const confirmPassword = document.getElementById('confirmPassword');
-    
-    function validatePassword() {
-        if (password.value !== confirmPassword.value) {
-            confirmPassword.setCustomValidity('Пароли не совпадают');
+    function validatePasswordMatch() {
+        if (passwordInput.value !== confirmPasswordInput.value) {
+            confirmPasswordInput.setCustomValidity('Пароли не совпадают');
         } else {
-            confirmPassword.setCustomValidity('');
+            confirmPasswordInput.setCustomValidity('');
         }
     }
 
-    password.addEventListener('change', validatePassword);
-    confirmPassword.addEventListener('change', validatePassword);
+    passwordInput.addEventListener('input', validatePasswordMatch);
+    confirmPasswordInput.addEventListener('input', validatePasswordMatch);
 });
