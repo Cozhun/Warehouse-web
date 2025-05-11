@@ -60,12 +60,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.classList.remove('is-valid');
                 this.classList.add('is-invalid');
             }
+            // Если это поле пароля или подтверждения пароля, проверяем совпадение
+            if (this === passwordInput || this === confirmPasswordInput) {
+                validatePasswordMatch();
+            }
         });
     });
 
     // Обработка отправки формы
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
+        
+        // Проверяем совпадение паролей перед отправкой
+        validatePasswordMatch();
         
         if (regTypeNewEnterpriseRadio.checked) {
             if (!enterpriseNameInput.value) enterpriseNameInput.classList.add('is-invalid');
@@ -132,11 +139,21 @@ document.addEventListener('DOMContentLoaded', function() {
     function validatePasswordMatch() {
         if (passwordInput.value !== confirmPasswordInput.value) {
             confirmPasswordInput.setCustomValidity('Пароли не совпадают');
+            confirmPasswordInput.classList.remove('is-valid');
+            confirmPasswordInput.classList.add('is-invalid');
         } else {
             confirmPasswordInput.setCustomValidity('');
+            if (confirmPasswordInput.value) {
+                confirmPasswordInput.classList.remove('is-invalid');
+                confirmPasswordInput.classList.add('is-valid');
+            }
         }
     }
 
+    // Вызываем валидацию при загрузке страницы
+    validatePasswordMatch();
+
+    // Добавляем обработчики событий для полей паролей
     passwordInput.addEventListener('input', validatePasswordMatch);
     confirmPasswordInput.addEventListener('input', validatePasswordMatch);
 });

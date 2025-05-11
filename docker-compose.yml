@@ -1,53 +1,65 @@
+version: '3.8'
+
 services:
   app:
     build: .
-    ports:
-      - "3000:3000" # Проброс порта приложения
+    # Удаляем прямой проброс порта, так как теперь будет через Traefik
+    # ports:
+    #   - "3000:3000"
     environment:
-      - DB_HOST=db
       - DB_USER=postgres
-      - DB_PASSWORD=password
+      - DB_HOST=db # Важно: имя сервиса базы данных
       - DB_NAME=warehousedb
+      - DB_PASSWORD=supersecretpassword # Используйте более надежный пароль
       - DB_PORT=5432
-      # Установите SESSION_SECRET для express-session
-      - SESSION_SECRET=R40ydhBSVwqImThx # ЗАМЕНИТЕ НА НАДЕЖНЫЙ СЕКРЕТ
-   
+      - SESSION_SECRET=R40ydhBSVwqImThx
     depends_on:
-      db: # Зависит от сервиса db
-        condition: service_healthy # Запускать app только после того, как db будет готов (пройдет healthcheck)
+      db:
+        condition: service_healthy
     volumes:
-      # Можно раскомментировать для разработки, чтобы изменения кода отражались без пересборки
-      # - .:/usr/src/app
-      # - /usr/src/app/node_modules # Исключаем node_modules из volume
-      - node_modules_volume:/usr/src/app/node_modules # Монтируем node_modules как отдельный volume
+      # Раскомментируйте следующую строку для активной разработки,
+      # чтобы изменения в локальном коде отражались в контейнере.
+      #- .:/usr/src/app
+      - node_modules_volume:/usr/src/app/node_modules # Используем именованный volume
     networks:
       - warehouse-net
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.warehouse.rule=Host(`warehouse.cozhunhomeserver.crazedns.ru`)" # Замените на ваш домен
+      - "traefik.http.routers.warehouse.entrypoints=https"
+      - "traefik.http.routers.warehouse.tls=true"
+      - "traefik.http.routers.warehouse.tls.certresolver=letsencrypt"
+      - "traefik.http.services.warehouse.loadbalancer.server.port=3000"
+      - "traefik.http.middlewares.warehouse-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.warehouse-http.rule=Host(`warehouse.cozhunhomeserver.crazedns.ru`)"
+      - "traefik.http.routers.warehouse-http.entrypoints=http"
+      - "traefik.http.routers.warehouse-http.middlewares=warehouse-https-redirect"
 
   db:
-    image: postgres:15-alpine # Используем официальный образ PostgreSQL
+    image: postgres:latest
     environment:
-      POSTGRES_DB: warehousedb
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=warehousedb
+      - POSTGRES_PASSWORD=supersecretpassword # Должен совпадать с DB_PASSWORD для app
     volumes:
-      - postgres_data:/var/lib/postgresql/data # Сохранение данных БД
-      # Монтируем скрипт инициализации в специальную директорию
-      # Скрипт будет выполнен автоматически при первом запуске контейнера
-      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
-    # ports:
-    #   - "5432:5432" # Опционально: проброс порта БД для внешнего доступа
-    networks:
-      - warehouse-net
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # Опционально: для доступа к БД с хост-машины
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d warehousedb"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - warehouse-net
 
 networks:
   warehouse-net:
     driver: bridge
+  proxy:
+    external: true
 
 volumes:
-  postgres_data:
-  node_modules_volume: # Volume для node_modules 
+  postgres_data: 
+  node_modules_volume:

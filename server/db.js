@@ -1,6 +1,8 @@
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto'); // Добавляем crypto для генерации токенов
+const fs = require('fs');
+const path = require('path');
 
 // Используем переменные окружения для конфигурации
 // Эти значения будут установлены в docker-compose.yml
@@ -12,12 +14,32 @@ const pool = new Pool({
   port: process.env.DB_PORT || 5432,
 });
 
-// Проверка соединения при старте
-pool.connect((err, client, release) => {
+// Функция инициализации базы данных
+async function initializeDatabase() {
+  try {
+    // Читаем SQL файл
+    const initSql = fs.readFileSync(path.join(__dirname, '../sql/init.sql'), 'utf8');
+    
+    // Выполняем SQL скрипт
+    await pool.query(initSql);
+    console.log('Database initialized successfully');
+  } catch (err) {
+    console.error('Error initializing database:', err);
+    throw err;
+  }
+}
+
+// Проверка соединения и инициализация при старте
+pool.connect(async (err, client, release) => {
   if (err) {
     return console.error('Error acquiring client', err.stack);
   }
   console.log('Connected to database (PostgreSQL)');
+  try {
+    await initializeDatabase();
+  } catch (err) {
+    console.error('Failed to initialize database:', err);
+  }
   release(); // освобождаем клиента обратно в пул
 });
 
